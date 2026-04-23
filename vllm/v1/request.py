@@ -133,6 +133,10 @@ class Request:
         self.discard_latest_async_tokens = False
 
         self.spec_token_ids: list[int] = []
+        # Number of async speculative placeholders to emit as -1 tokens in the
+        # next scheduling step. This is distinct from spec_token_ids, which
+        # only stores real draft token IDs.
+        self.num_pending_async_spec_placeholders = 0
         self.num_computed_tokens = 0
         self.cache_salt: str | None = cache_salt
 

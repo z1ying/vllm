@@ -100,6 +100,32 @@ def test_abort():
         assert req.num_output_tokens == abort_order_copy.index(i)
 
 
+def test_schedule_clears_stale_async_spec_placeholders():
+    """Drop async placeholder intent when previous worker slot is absent."""
+    scheduler = create_scheduler(
+        async_scheduling=True,
+        enable_chunked_prefill=False,
+        num_speculative_tokens=2,
+    )
+    (request,) = create_requests(num_requests=1, num_tokens=1)
+    scheduler.add_request(request)
+
+    first_output = scheduler.schedule()
+    assert first_output.num_scheduled_tokens[request.request_id] == 1
+    assert request.spec_token_ids == []
+    assert request.num_pending_async_spec_placeholders == 2
+
+    # Simulate the request disappearing from the worker's persistent batch.
+    scheduler.prev_step_scheduled_req_ids.clear()
+
+    second_output = scheduler.schedule()
+
+    assert second_output.num_scheduled_tokens[request.request_id] == 1
+    assert request.request_id not in second_output.scheduled_spec_decode_tokens
+    assert request.spec_token_ids == []
+    assert request.num_pending_async_spec_placeholders == 0
+
+
 def test_preempt():
     scheduler = create_scheduler(async_scheduling=True)
     requests = create_requests(num_requests=10, max_tokens=20)
