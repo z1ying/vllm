@@ -25,8 +25,15 @@ class AsyncScheduler(Scheduler):
             # in this scheduling step.
             cur_num_spec_tokens = len(spec_decode_tokens.get(req_id, ()))
             request.num_output_placeholders += 1 + cur_num_spec_tokens
-            # Carry async placeholder intent separately from real spec tokens.
-            request.num_pending_async_spec_placeholders = cur_num_spec_tokens
+            # Next step may materialize -1 draft placeholders for async input
+            # prep; that count follows config (same as the old
+            # `_spec_token_placeholders` list length), not the length of
+            # `spec_decode_tokens` in this same step (which can be 0 on the
+            # first post-prefill schedule before any draft is scheduled).
+            if self.num_spec_tokens > 0:
+                request.num_pending_async_spec_placeholders = self.num_spec_tokens
+            else:
+                request.num_pending_async_spec_placeholders = 0
 
     def _update_request_with_output(
         self, request: Request, new_token_ids: list[int]
