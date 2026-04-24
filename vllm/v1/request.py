@@ -229,7 +229,11 @@ class Request:
 
     @property
     def num_tokens_with_spec(self) -> int:
-        return len(self._all_token_ids) + len(self.spec_token_ids)
+        return (
+            len(self._all_token_ids)
+            + len(self.spec_token_ids)
+            + self.num_pending_async_spec_placeholders
+        )
 
     @property
     def num_output_tokens(self) -> int:

@@ -350,7 +350,8 @@ class Scheduler(SchedulerInterface):
         # There's no "decoding phase" nor "prefill phase" in the scheduler.
         # Each request just has the num_computed_tokens and
         # num_tokens_with_spec. num_tokens_with_spec =
-        # len(prompt_token_ids) + len(output_token_ids) + len(spec_token_ids).
+        # len(prompt_token_ids) + len(output_token_ids)
+        # + len(spec_token_ids) + num_pending_async_spec_placeholders.
         # At each step, the scheduler tries to assign tokens to the requests
         # so that each request's num_computed_tokens can catch up its
         # num_tokens_with_spec. This is general enough to cover

@@ -8,7 +8,7 @@ import pytest
 from vllm.v1.core.sched.async_scheduler import AsyncScheduler
 from vllm.v1.core.sched.output import CachedRequestData, SchedulerOutput
 from vllm.v1.outputs import ModelRunnerOutput
-from vllm.v1.request import RequestStatus
+from vllm.v1.request import Request, RequestStatus
 from vllm.v1.utils import ConstantList
 
 from .utils import create_requests, create_scheduler
@@ -105,7 +105,7 @@ def _make_request_ready_for_spec_decode(
     *,
     num_computed_tokens: int = 2,
     num_output_placeholders: int = 1,
-) -> tuple[str, object]:
+) -> tuple[str, Request]:
     """Create a request whose next schedule step can include spec tokens."""
     (request,) = create_requests(num_requests=1, num_tokens=1)
     scheduler.requests[request.request_id] = request
@@ -179,6 +179,28 @@ def test_consume_async_spec_clears_pending_when_no_spec_budget():
     )
 
     assert spec_token_ids is None
+    assert request.num_pending_async_spec_placeholders == 0
+
+
+def test_schedule_reserves_budget_for_async_spec_placeholders():
+    """Async placeholder intent should count toward the next step's budget."""
+    scheduler = create_scheduler(
+        async_scheduling=True,
+        enable_chunked_prefill=False,
+        num_speculative_tokens=2,
+    )
+    (request,) = create_requests(num_requests=1, num_tokens=1)
+    scheduler.add_request(request)
+
+    first_output = scheduler.schedule()
+
+    assert first_output.num_scheduled_tokens[request.request_id] == 1
+    assert request.num_pending_async_spec_placeholders == 2
+
+    second_output = scheduler.schedule()
+
+    assert second_output.num_scheduled_tokens[request.request_id] == 3
+    assert second_output.scheduled_spec_decode_tokens[request.request_id] == [-1, -1]
     assert request.num_pending_async_spec_placeholders == 0
 
 
